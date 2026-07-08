@@ -7,6 +7,7 @@ import { getSiteUrl } from "@/lib/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { buildStorageSummary, getProfileByUsername, getReposForOwner, syncDiscoveredRepos } from "@/lib/repos";
 import { formatBytes } from "@/lib/storage";
+import { OwnerStudio } from "@/components/owner-studio";
 
 export default async function UserPage({ params }: { params: Promise<{ username: string }> }) {
   const { username } = await params;
@@ -98,6 +99,25 @@ export default async function UserPage({ params }: { params: Promise<{ username:
             <div className="caption">The CLI now authorizes through the website instead of taking your Supabase password in the terminal.</div>
           </article>
         </section>
+
+        {isOwner ? (
+          <section className="page">
+            <div className="page-header">
+              <div>
+                <div className="meta-label">Website actions</div>
+                <h2 className="page-title">Create repos and upload folders from the browser.</h2>
+              </div>
+            </div>
+            <OwnerStudio
+              ownerUsername={ownerProfile.username}
+              repos={repos.map((repo) => ({
+                id: repo.id,
+                name: repo.name,
+                slug: repo.slug,
+              }))}
+            />
+          </section>
+        ) : null}
 
         {repos.length === 0 ? (
           <section className="panel detail-stack">
