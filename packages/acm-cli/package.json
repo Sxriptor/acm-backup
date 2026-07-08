@@ -1,14 +1,38 @@
-{
-  "name": "acm-cli",
-  "version": "0.1.0",
-  "private": true,
+﻿{
+  "name": "@sxriptor/acm",
+  "version": "0.2.0",
+  "description": "ACM command line tools for ACM Hub",
+  "type": "module",
   "bin": {
     "acm": "./bin/acm.js"
   },
-  "type": "module",
+  "files": [
+    "bin",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18.18"
+  },
+  "license": "MIT",
+  "author": "Sxriptor",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Sxriptor/acm-backup.git",
+    "directory": "packages/acm-cli"
+  },
+  "bugs": {
+    "url": "https://github.com/Sxriptor/acm-backup/issues"
+  },
+  "homepage": "https://github.com/Sxriptor/acm-backup/tree/main/packages/acm-cli#readme",
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "prepublishOnly": "node --check ./bin/acm.js"
+  },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
-    "commander": "^14.0.1",
-    "zod": "^4.1.11"
+    "commander": "^14.0.1"
   }
 }
