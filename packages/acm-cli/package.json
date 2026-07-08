@@ -4,7 +4,7 @@
   "description": "ACM command line tools for ACM Hub",
   "type": "module",
   "bin": {
-    "acm": "./bin/acm.js"
+    "acm": "bin/acm.js"
   },
   "files": [
     "bin",

@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env node
+#!/usr/bin/env node
 import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import os from "node:os";
