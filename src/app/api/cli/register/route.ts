@@ -13,8 +13,8 @@ const schema = z.object({
 });
 
 export async function POST(request: NextRequest) {
-  const user = await getCliUser(request);
-  if (!user) {
+  const cliUser = await getCliUser(request);
+  if (!cliUser?.profile) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
@@ -26,22 +26,15 @@ export async function POST(request: NextRequest) {
   const admin = createSupabaseAdminClient();
   const { ownerUsername, repoSlug, repoName, remoteUrl, sourcePath } = parsed.data;
 
-  const { data: profile } = await admin
-    .from("profiles")
-    .select("id, username")
-    .eq("id", user.id)
-    .eq("username", ownerUsername)
-    .maybeSingle();
-
-  if (!profile) {
-    return NextResponse.json({ error: "remote owner does not match the signed-in user" }, { status: 403 });
+  if (cliUser.profile.username !== ownerUsername) {
+    return NextResponse.json({ error: "remote owner does not match the logged-in CLI account" }, { status: 403 });
   }
 
   const { data, error } = await admin
     .from("repositories")
     .upsert(
       {
-        owner_id: user.id,
+        owner_id: cliUser.ownerId,
         slug: repoSlug,
         name: repoName,
         source_path: sourcePath ?? null,

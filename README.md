@@ -6,14 +6,21 @@ Simplified GitHub-style backup site for the `work` folder.
 
 - Next.js App Router
 - Supabase email/password auth
-- Supabase tables for profiles, repositories, and commit history
-- Local `acm` CLI workspace package
-- Cloudflare bucket seam ready through `ACM_BACKUP_BUCKET`
+- Browser-approved CLI login with stored ACM tokens
+- Supabase tables for profiles, repositories, commit history, storage quotas, and CLI device sessions
+- Cloudflare bucket targeting metadata for `repos`, `releases`, and `LFA`
+
+## Storage rules
+
+- Max single file upload: 2 GB
+- Files 300 MB and larger: route to `LFA`
+- Max repo snapshot size: 5 GB
+- Max account storage: 10 GB
 
 ## Setup
 
 1. Copy `.env.example` to `.env.local` and fill in the Supabase values.
-2. Run the SQL in `supabase/migrations/20260707235500_initial_acmhub.sql`.
+2. Run both SQL migrations in `supabase/migrations/`.
 3. Start the app with `npm run dev`.
 4. Create an account at `/signup`.
 5. Open `/u/<username>` and click `Sync from work folder`.
@@ -26,7 +33,13 @@ Install the local CLI into your shell:
 npm link ./packages/acm-cli
 ```
 
-Basic flow:
+Browser auth flow:
+
+```bash
+acm login
+```
+
+Basic repo flow:
 
 ```bash
 acm init .
@@ -34,14 +47,9 @@ acm remote add origin https://acmhub.netlify.app/sxriptor/unlimited-rod-holders.
 acm add .
 acm commit -m "first backup"
 acm push origin main
+acm storage
+acm help
 ```
-
-The CLI reads these env vars before push:
-
-- `ACM_SUPABASE_URL` or `NEXT_PUBLIC_SUPABASE_URL`
-- `ACM_SUPABASE_PUBLISHABLE_KEY` or `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
-- `ACM_EMAIL`
-- `ACM_PASSWORD`
 
 ## Local work scan
 

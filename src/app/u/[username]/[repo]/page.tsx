@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { getSiteUrl } from "@/lib/env";
 import { getLatestCommits, getProfileByUsername, getRepoByOwnerAndSlug } from "@/lib/repos";
+import { formatBytes } from "@/lib/storage";
 
 export default async function RepoPage({
   params,
@@ -54,6 +55,11 @@ export default async function RepoPage({
             <div className="caption mono">acm remote add origin {cloneUrl}</div>
           </article>
           <article className="panel detail-stack">
+            <div className="meta-label">Storage</div>
+            <div className="code-block">Used {formatBytes(repository.storage_used_bytes)} of {formatBytes(repository.storage_quota_bytes)}{"\n"}Bucket {repository.current_bucket || "not assigned yet"}</div>
+            <div className="caption">Per-repo max is 5 GB. Files over 300 MB route to the LFA bucket. Single files over 2 GB are rejected.</div>
+          </article>
+          <article className="panel detail-stack">
             <div className="meta-label">Local source path</div>
             <div className="inline-code-pill">{repository.source_path || "Not linked yet"}</div>
             <div className="caption">If this repo came from the CLI first, the path stays empty until you sync from the work folder or store it in metadata.</div>
@@ -62,7 +68,7 @@ export default async function RepoPage({
 
         <section className="panel detail-stack">
           <div className="meta-label">CLI flow</div>
-          <div className="code-block">acm init .{"\n"}acm add .{"\n"}acm commit -m &quot;backup snapshot&quot;{"\n"}acm push origin main</div>
+          <div className="code-block">acm login{"\n"}acm init .{"\n"}acm add .{"\n"}acm commit -m &quot;backup snapshot&quot;{"\n"}acm push origin main{"\n"}acm storage</div>
         </section>
 
         <section className="panel detail-stack">
@@ -85,8 +91,16 @@ export default async function RepoPage({
                       <span>{commit.file_count}</span>
                     </li>
                     <li>
-                      <span>Archive key</span>
-                      <span className="mono">{commit.archive_key || "not stored yet"}</span>
+                      <span>Snapshot size</span>
+                      <span>{formatBytes(commit.total_bytes)}</span>
+                    </li>
+                    <li>
+                      <span>Bucket</span>
+                      <span className="mono">{commit.bucket_name || "not stored yet"}</span>
+                    </li>
+                    <li>
+                      <span>Class</span>
+                      <span className="mono">{commit.asset_class}</span>
                     </li>
                     <li>
                       <span>Pushed</span>
@@ -102,4 +116,3 @@ export default async function RepoPage({
     </main>
   );
 }
-

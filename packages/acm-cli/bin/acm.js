@@ -1,11 +1,12 @@
 ﻿#!/usr/bin/env node
 import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import process from "node:process";
+import { spawn } from "node:child_process";
 
 import { Command } from "commander";
-import { createClient } from "@supabase/supabase-js";
 
 const program = new Command();
 const ACM_DIR = ".acm";
@@ -13,10 +14,24 @@ const CONFIG_FILE = "config.json";
 const INDEX_FILE = "index.json";
 const HEAD_FILE = "HEAD.json";
 const COMMITS_DIR = "commits";
+const CLI_STATE_DIR = path.join(os.homedir(), ".acm");
+const CLI_AUTH_FILE = path.join(CLI_STATE_DIR, "auth.json");
+const DEFAULT_SITE_URL = process.env.ACM_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 const IGNORED = new Set([ACM_DIR, ".git", "node_modules", "dist", "build", ".next", "coverage", "obj", "bin"]);
 
 function slugify(input) {
   return input.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "repo";
+}
+
+function formatBytes(bytes) {
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let value = bytes;
+  let index = 0;
+  while (value >= 1024 && index < units.length - 1) {
+    value /= 1024;
+    index += 1;
+  }
+  return `${value.toFixed(value >= 100 || index === 0 ? 0 : 1)} ${units[index]}`;
 }
 
 async function ensureDir(target) {
@@ -101,31 +116,6 @@ function treeSha(files) {
   return createHash("sha1").update(JSON.stringify(files)).digest("hex");
 }
 
-async function getSupabaseSession() {
-  const url = process.env.ACM_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.ACM_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  const email = process.env.ACM_EMAIL;
-  const password = process.env.ACM_PASSWORD;
-
-  if (!url || !key || !email || !password) {
-    throw new Error("Set ACM_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL, ACM_SUPABASE_PUBLISHABLE_KEY or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, ACM_EMAIL, and ACM_PASSWORD before pushing.");
-  }
-
-  const supabase = createClient(url, key, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  });
-
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error || !data.session) {
-    throw new Error(error?.message || "Supabase sign-in failed.");
-  }
-
-  return data.session;
-}
-
 function parseRemote(remoteUrl) {
   const parsed = new URL(remoteUrl);
   const parts = parsed.pathname.split("/").filter(Boolean);
@@ -142,7 +132,121 @@ function parseRemote(remoteUrl) {
   };
 }
 
-program.name("acm").description("ACM Hub CLI").version("0.1.0");
+async function loadCliAuth() {
+  return readJson(CLI_AUTH_FILE, null);
+}
+
+async function saveCliAuth(data) {
+  await writeJson(CLI_AUTH_FILE, data);
+}
+
+async function requireCliAuth() {
+  const auth = await loadCliAuth();
+  if (!auth?.token || !auth?.siteUrl) {
+    throw new Error("Run `acm login` first.");
+  }
+  return auth;
+}
+
+function tryOpenBrowser(url) {
+  try {
+    if (process.platform === "win32") {
+      spawn("cmd", ["/c", "start", "", url], { detached: true, stdio: "ignore" }).unref();
+      return true;
+    }
+    if (process.platform === "darwin") {
+      spawn("open", [url], { detached: true, stdio: "ignore" }).unref();
+      return true;
+    }
+    spawn("xdg-open", [url], { detached: true, stdio: "ignore" }).unref();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function apiFetch(siteUrl, pathname, init = {}) {
+  const response = await fetch(`${siteUrl}${pathname}`, init);
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload.error || `Request failed: ${response.status}`);
+  }
+  return payload;
+}
+
+program.name("acm").description("ACM Hub CLI").version("0.2.0");
+
+program
+  .command("login")
+  .description("Authorize the CLI through the ACM website")
+  .option("--site <url>", "ACM site URL", DEFAULT_SITE_URL)
+  .option("--label <label>", "Device label", os.hostname())
+  .action(async (options) => {
+    const siteUrl = options.site.replace(/\/$/, "");
+    const start = await apiFetch(siteUrl, "/api/cli/login/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ label: options.label || os.hostname() }),
+    });
+
+    console.log(`Open this URL to authorize ACM:`);
+    console.log(start.verificationUrl);
+    console.log(`Code: ${start.userCode}`);
+    tryOpenBrowser(start.verificationUrl);
+
+    const deadline = new Date(start.expiresAt).getTime();
+    while (Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      const poll = await apiFetch(siteUrl, "/api/cli/login/poll", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deviceCode: start.deviceCode }),
+      });
+
+      if (poll.status === "approved" && poll.token) {
+        await saveCliAuth({ siteUrl, token: poll.token, loggedInAt: new Date().toISOString() });
+        console.log("CLI login complete.");
+        return;
+      }
+
+      if (poll.status === "expired") {
+        throw new Error("Login request expired. Run `acm login` again.");
+      }
+    }
+
+    throw new Error("Login timed out. Run `acm login` again.");
+  });
+
+program
+  .command("logout")
+  .description("Remove the stored ACM CLI token")
+  .action(async () => {
+    await fs.rm(CLI_AUTH_FILE, { force: true });
+    console.log("CLI login removed.");
+  });
+
+program
+  .command("storage")
+  .description("Show account and repo storage usage")
+  .action(async () => {
+    const auth = await requireCliAuth();
+    const payload = await apiFetch(auth.siteUrl, "/api/cli/storage", {
+      headers: {
+        Authorization: `Bearer ${auth.token}`,
+      },
+    });
+
+    console.log(`${payload.profile.displayName || payload.profile.username} (${payload.profile.username})`);
+    console.log(`Used: ${formatBytes(payload.storage.usedBytes)} / ${formatBytes(payload.storage.quotaBytes)}`);
+    console.log(`Remaining: ${formatBytes(payload.storage.remainingBytes)}`);
+
+    if (payload.repos.length > 0) {
+      console.log("\nRepos:");
+      for (const repo of payload.repos) {
+        console.log(`- ${repo.name} (${repo.slug}) :: ${formatBytes(repo.usedBytes)} / ${formatBytes(repo.quotaBytes)} :: ${repo.bucket || "unassigned"}`);
+      }
+    }
+  });
 
 program
   .command("init [target]")
@@ -168,6 +272,7 @@ program
 const remoteCommand = program.command("remote").description("Manage remotes");
 remoteCommand
   .command("add <name> <url>")
+  .description("Add or replace a remote")
   .action(async (name, url) => {
     const root = await resolveRepoRoot(".");
     const { paths, config } = await loadConfig(root);
@@ -184,14 +289,16 @@ program
     const root = await resolveRepoRoot(target);
     const { paths } = await loadConfig(root);
     const files = await collectFiles(root);
+    const totalBytes = files.reduce((sum, file) => sum + file.size, 0);
     const index = {
       root,
       stagedAt: new Date().toISOString(),
       treeSha: treeSha(files),
+      totalBytes,
       files,
     };
     await writeJson(paths.index, index);
-    console.log(`Staged ${files.length} files.`);
+    console.log(`Staged ${files.length} files (${formatBytes(totalBytes)}).`);
   });
 
 program
@@ -212,13 +319,14 @@ program
       message: options.message,
       createdAt: new Date().toISOString(),
       treeSha: index.treeSha,
+      totalBytes: index.totalBytes,
       files: index.files,
       root,
     };
 
     await writeJson(path.join(paths.commits, `${commitId}.json`), commit);
     await writeJson(paths.head, commit);
-    console.log(`Committed ${commitId}`);
+    console.log(`Committed ${commitId} (${formatBytes(index.totalBytes)}).`);
   });
 
 program
@@ -237,15 +345,15 @@ program
       throw new Error("No local commit found. Run `acm commit -m ...` first.");
     }
 
-    const session = await getSupabaseSession();
+    const auth = await requireCliAuth();
     const remote = parseRemote(remoteUrl);
     const repoName = config.repoName || path.basename(root);
 
-    const response = await fetch(`${remote.baseUrl}/api/cli/push`, {
+    const payload = await apiFetch(remote.baseUrl, "/api/cli/push", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${session.access_token}`,
+        Authorization: `Bearer ${auth.token}`,
       },
       body: JSON.stringify({
         ownerUsername: remote.ownerUsername,
@@ -260,13 +368,10 @@ program
       }),
     });
 
-    const payload = await response.json();
-    if (!response.ok) {
-      throw new Error(payload.error || "Push failed.");
-    }
-
     console.log(`Pushed ${repoName} to ${remoteUrl}`);
     console.log(`Commit created at ${payload.commit.created_at}`);
+    console.log(`Bucket: ${payload.bucketName} (${payload.assetClass})`);
+    console.log(`Storage remaining: ${formatBytes(payload.storage.remainingBytes)}`);
   });
 
 program.parseAsync(process.argv).catch((error) => {

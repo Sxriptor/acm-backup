@@ -6,7 +6,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; next?: string }>;
 }) {
   const params = await searchParams;
 
@@ -15,11 +15,12 @@ export default async function LoginPage({
 
     const email = String(formData.get("email") ?? "").trim();
     const password = String(formData.get("password") ?? "");
+    const next = String(formData.get("next") ?? "").trim();
     const supabase = await createSupabaseServerClient();
     const { error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
-      redirect(`/login?error=${encodeURIComponent(error.message)}`);
+      redirect(`/login?error=${encodeURIComponent(error.message)}${next ? `&next=${encodeURIComponent(next)}` : ""}`);
     }
 
     const {
@@ -31,6 +32,10 @@ export default async function LoginPage({
       .select("username")
       .eq("id", user?.id ?? "")
       .maybeSingle();
+
+    if (next.startsWith("/")) {
+      redirect(next);
+    }
 
     redirect(profile?.username ? `/u/${profile.username}` : "/signup?error=Finish your profile setup");
   }
@@ -45,6 +50,7 @@ export default async function LoginPage({
         </div>
         {params.error ? <div className="flash">{params.error}</div> : null}
         <form className="form-stack" action={login}>
+          <input type="hidden" name="next" value={params.next || ""} />
           <label>
             Email
             <input className="input" type="email" name="email" required />

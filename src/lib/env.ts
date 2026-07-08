@@ -2,6 +2,11 @@
 
 const requiredClientEnv = ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"] as const;
 
+export const MAX_ACCOUNT_STORAGE_BYTES = 10 * 1024 * 1024 * 1024;
+export const MAX_REPO_STORAGE_BYTES = 5 * 1024 * 1024 * 1024;
+export const LARGE_FILE_ASSET_THRESHOLD_BYTES = 300 * 1024 * 1024;
+export const MAX_SINGLE_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024;
+
 export function requireEnv(name: string): string {
   const value = process.env[name];
   if (!value) {
@@ -34,6 +39,14 @@ export function getWorkRoot() {
   return process.env.ACM_WORK_ROOT || path.join(/* turbopackIgnore: true */ process.cwd(), "..", "work");
 }
 
-export function getBucketName() {
-  return process.env.ACM_BACKUP_BUCKET || "";
+export function getReposBucketName() {
+  return process.env.ACM_BUCKET_REPOS || "repos";
+}
+
+export function getReleasesBucketName() {
+  return process.env.ACM_BUCKET_RELEASES || "releases";
+}
+
+export function getLargeFileAssetsBucketName() {
+  return process.env.ACM_BUCKET_LFA || "LFA";
 }

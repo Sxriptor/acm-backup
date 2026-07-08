@@ -5,7 +5,8 @@ import { getViewer } from "@/lib/auth";
 import { discoverWorkRepos } from "@/lib/work";
 import { getSiteUrl } from "@/lib/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getProfileByUsername, getReposForOwner, syncDiscoveredRepos } from "@/lib/repos";
+import { buildStorageSummary, getProfileByUsername, getReposForOwner, syncDiscoveredRepos } from "@/lib/repos";
+import { formatBytes } from "@/lib/storage";
 
 export default async function UserPage({ params }: { params: Promise<{ username: string }> }) {
   const { username } = await params;
@@ -18,6 +19,7 @@ export default async function UserPage({ params }: { params: Promise<{ username:
   const ownerProfile = profile;
   const viewer = await getViewer().catch(() => null);
   const isOwner = viewer?.id === ownerProfile.id;
+  const storage = buildStorageSummary(ownerProfile.storage_used_bytes ?? 0, ownerProfile.storage_quota_bytes ?? 0);
 
   async function syncWork() {
     "use server";
@@ -44,7 +46,7 @@ export default async function UserPage({ params }: { params: Promise<{ username:
 
   return (
     <main className="page">
-      <div className="shell">
+      <div className="shell panel-stack">
         <header className="topbar">
           <div className="brand">
             <span className="brand-mark">A</span>
@@ -84,6 +86,19 @@ export default async function UserPage({ params }: { params: Promise<{ username:
           ) : null}
         </section>
 
+        <section className="repo-grid">
+          <article className="panel detail-stack">
+            <div className="meta-label">Account storage</div>
+            <div className="code-block">Used {formatBytes(storage.usedBytes)} of {formatBytes(storage.quotaBytes)}{"\n"}Remaining {formatBytes(storage.remainingBytes)}</div>
+            <div className="caption">A user maxes out at 10 GB total. Two 5 GB repos fully consume the account.</div>
+          </article>
+          <article className="panel detail-stack">
+            <div className="meta-label">CLI login</div>
+            <div className="code-block">acm login{"\n"}acm storage{"\n"}acm help</div>
+            <div className="caption">The CLI now authorizes through the website instead of taking your Supabase password in the terminal.</div>
+          </article>
+        </section>
+
         {repos.length === 0 ? (
           <section className="panel detail-stack">
             <div className="warning">
@@ -99,7 +114,8 @@ export default async function UserPage({ params }: { params: Promise<{ username:
                 <h3>{repo.name}</h3>
                 <p className="repo-meta">{repo.description || "No description yet. This was imported from the local work folder or first push."}</p>
                 <div className="inline-code-pill">{getSiteUrl()}/{ownerProfile.username}/{repo.slug}.acm</div>
-                <p className="caption">Source: {repo.source_path || "CLI-managed only"}</p>
+                <p className="caption">Storage: {formatBytes(repo.storage_used_bytes)} / {formatBytes(repo.storage_quota_bytes)}</p>
+                <p className="caption">Bucket: {repo.current_bucket || "not assigned yet"}</p>
               </Link>
             ))}
           </section>

@@ -1,7 +1,6 @@
 ﻿import { NextRequest } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 
-import { getSupabasePublishableKey, getSupabaseUrl } from "@/lib/env";
+import { getCliTokenUser } from "@/lib/cli-login";
 
 export async function getCliUser(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
@@ -11,21 +10,14 @@ export async function getCliUser(request: NextRequest) {
     return null;
   }
 
-  const supabase = createClient(getSupabaseUrl(), getSupabasePublishableKey(), {
-    global: {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    },
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-  });
+  const data = await getCliTokenUser(token);
+  if (!data) {
+    return null;
+  }
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser(token);
-
-  return user;
+  return {
+    tokenId: data.id,
+    ownerId: data.owner_id,
+    profile: data.profile,
+  };
 }

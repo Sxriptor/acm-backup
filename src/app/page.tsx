@@ -36,28 +36,28 @@ export default async function HomePage() {
             <h1>Track every top-level folder in `work` like its own repo.</h1>
             <p>
               ACM Hub is a simplified GitHub clone for your local mod and tooling directories.
-              Supabase handles password auth. The web app lists repos, stores commit history, and
-              exposes `.acm` remotes. The `acm` CLI gives you the basic flow: `init`, `add`,
-              `commit`, and `push`.
+              Supabase handles password auth on the website. The CLI now authorizes through the
+              browser, not through terminal passwords. Each top-level `work/*` folder can become a
+              repo with a `.acm` remote, commit history, and storage limits.
             </p>
             {!hasSupabaseEnv() ? (
               <div className="warning">
-                Supabase env vars are not configured yet. Use `.env.example`, run the SQL migration,
+                Supabase env vars are not configured yet. Use `.env.example`, run the SQL migrations,
                 then come back to sign in.
               </div>
             ) : null}
             <div className="hero-stats">
               <div className="stat">
-                <strong>1 folder</strong>
-                <span className="caption">1 repo identity per `work/*` directory</span>
+                <strong>10 GB</strong>
+                <span className="caption">max storage per account</span>
               </div>
               <div className="stat">
-                <strong>Password auth</strong>
-                <span className="caption">Supabase email/password only, no payments</span>
+                <strong>5 GB</strong>
+                <span className="caption">max snapshot size per repo</span>
               </div>
               <div className="stat">
-                <strong>.acm remotes</strong>
-                <span className="caption">Clone URL pattern built around your username</span>
+                <strong>300 MB+</strong>
+                <span className="caption">routes files to the `LFA` bucket</span>
               </div>
             </div>
           </div>
@@ -69,13 +69,13 @@ export default async function HomePage() {
             </div>
             <div>
               <div className="meta-label">CLI flow</div>
-              <div className="code-block">acm init .{"\n"}acm add .{"\n"}acm commit -m &quot;first backup&quot;{"\n"}acm push origin main</div>
+              <div className="code-block">acm login{"\n"}acm init .{"\n"}acm add .{"\n"}acm commit -m &quot;first backup&quot;{"\n"}acm push origin main{"\n"}acm storage</div>
             </div>
             <div>
-              <div className="meta-label">What gets stored</div>
+              <div className="meta-label">Buckets</div>
               <div className="caption">
-                Repo metadata in Supabase, commit manifests in the database, and a ready hook for
-                Cloudflare bucket archives once you provide the bucket env values.
+                `repos` for normal snapshots, `releases` for release branches, and `LFA` for files at
+                or above 300 MB. Single files over 2 GB are rejected.
               </div>
             </div>
           </div>
@@ -100,14 +100,14 @@ export default async function HomePage() {
               <div className="repo-badge">Browse</div>
               <h3>Open a repo page per folder</h3>
               <p className="repo-meta">
-                Each repo page exposes the `.acm` clone URL, source path, and recent commit history.
+                Each repo page exposes the `.acm` clone URL, current bucket, storage usage, and recent commits.
               </p>
             </article>
             <article className="repo-card">
-              <div className="repo-badge">Backup</div>
-              <h3>Push manifests from the CLI</h3>
+              <div className="repo-badge">Quota</div>
+              <h3>See storage left on the account</h3>
               <p className="repo-meta">
-                The CLI signs in with Supabase credentials from env vars and pushes file manifests to the app.
+                The website and the terminal `acm storage` command both report remaining storage.
               </p>
             </article>
           </div>
@@ -117,11 +117,11 @@ export default async function HomePage() {
           <div className="page-header">
             <div>
               <div className="meta-label">CLI</div>
-              <h2 className="page-title">Thin git-style commands, purpose-built for ACM.</h2>
+              <h2 className="page-title">Thin git-style commands, now with browser auth.</h2>
             </div>
           </div>
           <div className="panel">
-            <div className="code-block">npm link ./packages/acm-cli{"\n\n"}acm init .{"\n"}acm remote add origin https://acmhub.netlify.app/sxriptor/unlimited-rod-holders.acm{"\n"}acm add .{"\n"}acm commit -m &quot;sync rod holder runtime patch&quot;{"\n"}acm push origin main</div>
+            <div className="code-block">npm link ./packages/acm-cli{"\n\n"}acm login{"\n"}acm init .{"\n"}acm remote add origin https://acmhub.netlify.app/sxriptor/unlimited-rod-holders.acm{"\n"}acm add .{"\n"}acm commit -m &quot;sync rod holder runtime patch&quot;{"\n"}acm push origin main{"\n"}acm storage{"\n"}acm help</div>
           </div>
         </section>
 
@@ -129,21 +129,21 @@ export default async function HomePage() {
           <div className="page-header">
             <div>
               <div className="meta-label">Stack</div>
-              <h2 className="page-title">Next.js, Supabase, and a Cloudflare-ready storage seam.</h2>
+              <h2 className="page-title">Next.js, Supabase, and Cloudflare bucket-aware metadata.</h2>
             </div>
           </div>
           <div className="repo-grid">
             <article className="repo-card">
               <h3>Next.js app router</h3>
-              <p className="repo-meta">Server-rendered owner dashboards and repo pages.</p>
+              <p className="repo-meta">Server-rendered owner dashboards, repo pages, and CLI approval screens.</p>
             </article>
             <article className="repo-card">
               <h3>Supabase auth + tables</h3>
-              <p className="repo-meta">Email/password sign-in, profiles, repositories, and commit history.</p>
+              <p className="repo-meta">Email/password sign-in, profiles, repositories, commit history, CLI tokens, and storage quotas.</p>
             </article>
             <article className="repo-card">
-              <h3>Cloudflare bucket later</h3>
-              <p className="repo-meta">The archive storage function is already isolated so you can swap in R2 once you have the bucket URL and keys.</p>
+              <h3>Cloudflare bucket targeting</h3>
+              <p className="repo-meta">Bucket names for `repos`, `releases`, and `LFA` are now first-class env settings in the app.</p>
             </article>
           </div>
         </section>
@@ -151,4 +151,3 @@ export default async function HomePage() {
     </main>
   );
 }
-
