@@ -1,36 +1,52 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+﻿# ACM Hub
 
-## Getting Started
+Simplified GitHub-style backup site for the `work` folder.
 
-First, run the development server:
+## Stack
+
+- Next.js App Router
+- Supabase email/password auth
+- Supabase tables for profiles, repositories, and commit history
+- Local `acm` CLI workspace package
+- Cloudflare bucket seam ready through `ACM_BACKUP_BUCKET`
+
+## Setup
+
+1. Copy `.env.example` to `.env.local` and fill in the Supabase values.
+2. Run the SQL in `supabase/migrations/20260707235500_initial_acmhub.sql`.
+3. Start the app with `npm run dev`.
+4. Create an account at `/signup`.
+5. Open `/u/<username>` and click `Sync from work folder`.
+
+## CLI
+
+Install the local CLI into your shell:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm link ./packages/acm-cli
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Basic flow:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+acm init .
+acm remote add origin https://acmhub.netlify.app/sxriptor/unlimited-rod-holders.acm
+acm add .
+acm commit -m "first backup"
+acm push origin main
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The CLI reads these env vars before push:
 
-## Learn More
+- `ACM_SUPABASE_URL` or `NEXT_PUBLIC_SUPABASE_URL`
+- `ACM_SUPABASE_PUBLISHABLE_KEY` or `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+- `ACM_EMAIL`
+- `ACM_PASSWORD`
 
-To learn more about Next.js, take a look at the following resources:
+## Local work scan
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Generate a quick local manifest preview:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm run sync:work
+```
