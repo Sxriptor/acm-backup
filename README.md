@@ -33,6 +33,12 @@ Install the local CLI into your shell:
 npm link ./packages/acm-cli
 ```
 
+Publish the CLI package to npm from the workspace root:
+
+```bash
+npm run publish:cli
+```
+
 Browser auth flow:
 
 ```bash

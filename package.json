@@ -11,7 +11,9 @@
     "start": "next start",
     "lint": "eslint",
     "cli": "node packages/acm-cli/bin/acm.js",
-    "sync:work": "node scripts/sync-work-local.mjs"
+    "sync:work": "node scripts/sync-work-local.mjs",
+    "pack:cli": "npm pack --workspace @sxriptor/acm",
+    "publish:cli": "npm publish --workspace @sxriptor/acm --access public"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",
